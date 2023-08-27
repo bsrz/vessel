@@ -4,24 +4,24 @@ on:
   push:
     branches:
       - main
-      - 'releases/**'
+      - "releases/**"
   pull_request:
     branches:
       - main
-      - 'releases/**'
+      - "releases/**"
 
 jobs:
   run-all-tests:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v1
       - name: List Xcode Versions
         run: ls /Applications | grep Xcode
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_13.2.1.app
+        run: sudo xcode-select -switch /Applications/Xcode_14.3.1.app
       - name: List SDKs
         run: xcodebuild -showsdks
       - name: Run all tests on iOS
-        run: xcodebuild -scheme Vessel -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 13 Pro' test
+        run: xcodebuild -scheme Vessel -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14 Pro Max' test
       - name: Run all tests on macOS
-        run: xcodebuild -scheme Vessel -sdk macosx12.1 -destination 'platform=macOS' clean test
+        run: xcodebuild -scheme Vessel -sdk macosx13.3 -destination 'platform=macOS' clean test

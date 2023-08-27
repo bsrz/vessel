@@ -1,10 +1,10 @@
-// swift-tools-version: 5.5
+// swift-tools-version: 5.8
 
 import PackageDescription
 
 let package = Package(
     name: "Vessel",
-    platforms: [.iOS(.v14), .macOS(.v11)],
+    platforms: [.iOS(.v15), .macOS(.v12)],
     products: [
         .library(
             name: "Vessel",
