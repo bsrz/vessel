@@ -18,10 +18,10 @@ jobs:
       - name: List Xcode Versions
         run: ls /Applications | grep Xcode
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_14.3.1.app
+        run: sudo xcode-select -switch /Applications/Xcode_15.0.app
       - name: List SDKs
         run: xcodebuild -showsdks
       - name: Run all tests on iOS
-        run: xcodebuild -scheme Vessel -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14 Pro Max' test
+        run: xcodebuild -scheme Vessel -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15 Pro' test
       - name: Run all tests on macOS
-        run: xcodebuild -scheme Vessel -sdk macosx13.3 -destination 'platform=macOS' clean test
+        run: xcodebuild -scheme Vessel -sdk macosx14.0 -destination 'platform=macOS' clean test
