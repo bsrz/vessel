@@ -1,41 +1,29 @@
 import Foundation
+import HTTPTypes
 
 /// A behaviour that sets the base URL of the request if not already set
 public class BaseUrlVesselBehaviour: VesselBehaviour {
 
     /// A function that returns the base URL
-    public let url: () -> URL
+    public let url: () -> String
 
     /// Initializes a new instance
     /// - Parameter url: A function that returns the base URL
-    public init(url: @escaping () -> URL) {
+    public init(url: @escaping () -> String) {
         self.url = url
     }
 
     /// Modifies the base URL of the request if the URL of the request doesn't have one set
     /// - Parameters:
     ///   - client: The vessel client that owns this behaviour
-    ///   - operation: The operation that the client is performing
-    ///   - request: The request that the behaviour can modify
-    /// - Returns: A modified or unmodified request
-    public func client<T: VesselOperation>(_ client: VesselClient, operationWillBegin operation: T, request: URLRequest) async throws -> URLRequest {
-        var result = request
-        result.url?.updateBaseIfNeeded(url())
-        return result
-    }
-}
-
-private extension URL {
-
-    /// Updates the base URL of this URL
-    /// - Parameter url: The base URL
-    mutating func updateBaseIfNeeded(_ url: URL) {
-        guard
-            let components = URLComponents(url: self, resolvingAgainstBaseURL: true),
-            components.host.isNil,
-            let updated = components.url(relativeTo: url)
-        else { return }
-
-        self = updated
+    ///   - request: The request that the client is performing
+    ///   - httpRequest: The ``HTTPRequest`` that the behaviour can modify
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, willBeginHTTPRequest httpRequest: inout HTTPRequest) async throws {
+        if httpRequest.scheme == nil {
+            httpRequest.scheme = "https"
+        }
+        if httpRequest.authority == nil {
+            httpRequest.authority = url()
+        }
     }
 }

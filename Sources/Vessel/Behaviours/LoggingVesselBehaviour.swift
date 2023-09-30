@@ -1,4 +1,5 @@
 import Foundation
+import HTTPTypes
 import os.log
 
 /// A behaviour that can log the requests and responses that are performed and received by the client
@@ -15,41 +16,35 @@ public class LoggingVesselBehaviour: VesselBehaviour {
 
     /// Calls the logger function with a string representation of the request and response
     /// - Parameters:
-    ///   - client: The vessel client that owns this behaviour
-    ///   - operation: The operation that the client is performing
+    ///   - client: he vessel client that owns this behaviour
     ///   - request: The request that the client is performing
-    ///   - response: The response received by the client
-    public func client<T: VesselOperation>(_ client: VesselClient, operationReceived operation: T, request: URLRequest, response: (Data, URLResponse)) async throws {
-        guard let url = request.url?.absoluteString, let httpMethod = request.httpMethod else { return }
+    ///   - httpRequest: The ``HTTPRequest`` that the client has performed
+    ///   - event: The ``VesselBehaviourEvent`` that is being handled
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, httpRequest: HTTPRequest, didReceiveEvent event: VesselBehaviourEvent<T>) async throws {
+        guard let url = httpRequest.url?.absoluteString else { return }
+        
+        var requestLines: [String] = [
+            "curl -v -X \(httpRequest.method)", url
+        ]
 
-        var requestLines: [String] = ["curl -v -X \(httpMethod)", url]
-
-        let headers = request.allHTTPHeaderFields
-            .or([:])
-            .sorted { $0.key < $1.key }
-            .map { "-H '\($0.key): \($0.value)'" }
+        let headers = httpRequest.headerFields
+            .sorted { $0.name.canonicalName < $1.name.canonicalName }
+            .map { "-H '\($0.name.canonicalName): \($0.value)'" }
 
         requestLines.append(contentsOf: headers)
 
-        if let data = request.httpBody, let string = String(data: data, encoding: .utf8) {
-            requestLines.append("-d '\(string)'")
-        }
-
         var responseLines: [String] = []
 
-        if let response = response.1 as? HTTPURLResponse {
-            responseLines.append("Status: \(response.statusCode)")
+        switch event {
+        case .received(let httpResponse, let data):
+            responseLines += ["RECEIVED RESPONSE:"]
+            responseLines += lines(for: httpResponse)
+            responseLines += lines(for: data)
 
-            let headers = (response.allHeaderFields as? [String: String])
-                .or([:])
-                .sorted { $0.key < $1.key }
-                .map { "Header: '\($0.key): \($0.value)'" }
-
-            responseLines.append(contentsOf: headers)
-        }
-
-        if let string = String(data: response.0, encoding: .utf8) {
-            responseLines.append("Body: " + string)
+        case .completed(let httpResponse, let data, _):
+            responseLines += ["COMPLETED RESPONSE:"]
+            responseLines += lines(for: httpResponse)
+            responseLines += lines(for: data)
         }
 
         let logString = """
@@ -61,12 +56,29 @@ public class LoggingVesselBehaviour: VesselBehaviour {
         REQUEST:
         \(requestLines.joined(separator: " \\\n"))
 
-        RESPONSE:
         \(responseLines.joined(separator: "\n"))
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         """
 
         logger(logString)
+    }
+
+    private func lines(for response: HTTPResponse) -> [String] {
+        var lines: [String] = []
+        lines += ["Status: \(response.status)"]
+        lines += response.headerFields
+            .sorted { $0.name.canonicalName < $1.name.canonicalName }
+            .map { "-H '\($0.name.canonicalName): \($0.value)'" }
+
+        return lines
+    }
+
+    private func lines(for data: Data) -> [String] {
+        if data.count > 0 {
+            ["Body: \(String(data: data, encoding: .utf8).or("<empty>"))"]
+        } else {
+            ["Body: <empty>"]
+        }
     }
 }

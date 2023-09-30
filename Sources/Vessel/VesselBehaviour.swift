@@ -1,39 +1,31 @@
 import Foundation
+import HTTPTypes
 
 /// Can be implemented by a type that wishes to intercept the lifecycle of an operation
 public protocol VesselBehaviour: AnyObject {
 
-    /// Intercepts an operation before it is performed
+    /// Intercepts an ``HTTPRequest`` before it is performed
     ///
     /// Allows for mutation of the request to perform.
     ///
     /// - Parameters:
-    ///   - client: The vessel client that is performing the operation
-    ///   - operation: The operation performed by the client
-    ///   - request: The request that will be performed by the client
-    /// - Returns: An optionally mutated request to be performed by the client
-    func client<T: VesselOperation>(_ client: VesselClient, operationWillBegin operation: T, request: URLRequest) async throws -> URLRequest
+    ///   - client: The vessel client that is performing the request
+    ///   - request: The request performed by the client
+    ///   - httpRequest: The ``HTTPRequest`` that will be used during the whole operation
+    func client<T: VesselRequest>(_ client: VesselClient, request: T, willBeginHTTPRequest httpRequest: inout HTTPRequest) async throws
 
     /// Intercepts an operation every time a response is received
     /// - Parameters:
     ///   - client: The vessel client that is performing the operation
-    ///   - operation: The operation performed by the client
     ///   - request: The request that has been performed by the client
-    ///   - response: The reponse received by the client
-    func client<T: VesselOperation>(_ client: VesselClient, operationReceived operation: T, request: URLRequest, response: (Data, URLResponse)) async throws
-
-    /// Intercepts an operation after it has been completed
-    /// - Parameters:
-    ///   - client: The vessel client that is performing the operation
-    ///   - operation: The operation performed by the client
-    ///   - request: The request that has been performed by the client
-    ///   - response: The reponse received by the client
-    func client<T: VesselOperation>(_ client: VesselClient, operationCompleted operation: T, request: URLRequest, response: (Data, URLResponse, T.Response)) async throws
+    ///   - httpRequest: The ``HTTPRequest`` that has been performed by the client
+    ///   - event: The ``VesselBehaviourEvent`` emitted by the client
+    func client<T: VesselRequest>(_ client: VesselClient, request: T, httpRequest: HTTPRequest, didReceiveEvent event: VesselBehaviourEvent<T>) async throws
 }
 
 // MARK: - Default Behaviours
+
 extension VesselBehaviour {
-    public func client<T: VesselOperation>(_ client: VesselClient, operationWillBegin operation: T, request: URLRequest) async throws -> URLRequest { request }
-    public func client<T: VesselOperation>(_ client: VesselClient, operationReceived operation: T, request: URLRequest, response: (Data, URLResponse)) async throws { }
-    public func client<T: VesselOperation>(_ client: VesselClient, operationCompleted operation: T, request: URLRequest, response: (Data, URLResponse, T.Response)) async throws { }
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, willBeginHTTPRequest httpRequest: inout HTTPRequest) async throws { }
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, httpRequest: HTTPRequest, didReceiveEvent event: VesselBehaviourEvent<T>) async throws { }
 }

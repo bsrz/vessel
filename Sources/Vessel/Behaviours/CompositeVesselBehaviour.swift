@@ -1,54 +1,41 @@
 import Foundation
+import HTTPTypes
 
 /// Composes an ordered array of behaviours
-class CompositeVesselBehaviour: VesselBehaviour {
+public class CompositeVesselBehaviour: VesselBehaviour {
 
     /// An ordered array of behaviours to compose
-    let behaviours: [VesselBehaviour]
+    public let behaviours: [VesselBehaviour]
+
+    /// Returns the number of behaviours
+    public var count: Int { behaviours.count }
 
     /// Initializes a new composite behaviour
     /// - Parameter behaviours: The behaviour that the composite behaviour composes
-    init(behaviours: [VesselBehaviour]) {
+    public init(behaviours: [VesselBehaviour]) {
         self.behaviours = behaviours
     }
 
-    /// Composes the request returned by each behaviour
+    /// Composes the ``HTTPRequest`` mutated by each behaviour
     /// - Parameters:
     ///   - client: The vessel client that owns this behaviour
-    ///   - operation: The operation that the client is performing
-    ///   - request: The request that the behaviours can modify
-    /// - Returns: The composed request of all behaviours
-    func client<T: VesselOperation>(_ client: VesselClient, operationWillBegin operation: T, request: URLRequest) async throws -> URLRequest {
-        var composed = request
-
-        for behaviour in behaviours {
-            composed = try await behaviour.client(client, operationWillBegin: operation, request: composed)
-        }
-
-        return composed
-    }
-
-    /// Forwards the received operation to all behaviours
-    /// - Parameters:
-    ///   - client: The vessel client that owns this behaviour
-    ///   - operation: The operation that the client is performing
     ///   - request: The request that the client is performing
-    ///   - response: The response received by the client
-    func client<T: VesselOperation>(_ client: VesselClient, operationReceived operation: T, request: URLRequest, response: (Data, URLResponse)) async throws {
+    ///   - httpRequest: The ``HTTPRequest`` that the behaviours can modify
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, willBeginHTTPRequest httpRequest: inout HTTPRequest) async throws {
         for behaviour in behaviours {
-            try await behaviour.client(client, operationReceived: operation, request: request, response: response)
+            try await behaviour.client(client, request: request, willBeginHTTPRequest: &httpRequest)
         }
     }
 
-    /// Forwards the completed operation to all behaviours
+    /// Forwards the event to all behaviours
     /// - Parameters:
     ///   - client: The vessel client that owns this behaviour
-    ///   - operation: The operation that the client is performing
     ///   - request: The request that the client is performing
-    ///   - response: The response received by the client
-    func client<T: VesselOperation>(_ client: VesselClient, operationCompleted operation: T, request: URLRequest, response: (Data, URLResponse, T.Response)) async throws {
+    ///   - httpRequest: The ``HTTPRequest`` that was performed
+    ///   - event: The event that is occurring
+    public func client<T: VesselRequest>(_ client: VesselClient, request: T, httpRequest: HTTPRequest, didReceiveEvent event: VesselBehaviourEvent<T>) async throws {
         for behaviour in behaviours {
-            try await behaviour.client(client, operationCompleted: operation, request: request, response: response)
+            try await behaviour.client(client, request: request, httpRequest: httpRequest, didReceiveEvent: event)
         }
     }
 }

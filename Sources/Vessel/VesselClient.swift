@@ -1,12 +1,14 @@
 import Combine
 import Foundation
+import HTTPTypes
+import HTTPTypesFoundation
 import SwiftUI
 
 /// A client that performs operations
 public class VesselClient: ObservableObject {
 
     /// The composite behaviour that runs the lifecycle of each operation through an ordered array of mutating behaviours
-    private var behaviour: CompositeVesselBehaviour
+    public private(set) var behaviour: CompositeVesselBehaviour
 
     /// The `URLSession` used by the client
     private let session: URLSession
@@ -30,19 +32,42 @@ public class VesselClient: ObservableObject {
     /// Performs an operation
     /// - Parameter operation: The operation to perform
     /// - Returns: The response of the operation
-    public func perform<T: VesselOperation>(_ operation: T) async throws -> T.Response {
-        let initial = try operation.makeRequest()
+    public func perform<T: VesselRequest>(_ request: T) async throws -> T.ResponseType {
+        var requestDirection = try request.makeRequest()
+        try await behaviour.client(self, request: request, willBeginHTTPRequest: &requestDirection.httpRequest)
+        let (data, httpResponse): (Data, HTTPResponse)
 
-        let request = try await behaviour.client(self, operationWillBegin: operation, request: initial)
+        switch requestDirection {
+        case .download(let httpRequest):
+            (data, httpResponse) = try await session.data(for: httpRequest)
 
-        let response = try await session.data(for: request)
+        case .upload(let httpRequest, body: let body):
+            (data, httpResponse) = try await session.upload(for: httpRequest, from: body)
+        }
 
-        try await behaviour.client(self, operationReceived: operation, request: request, response: response)
+        try await behaviour.client(
+            self,
+            request: request,
+            httpRequest: requestDirection.httpRequest,
+            didReceiveEvent: .received(
+                httpResponse: httpResponse,
+                data: data
+            )
+        )
 
-        let result = try operation.handleResponse(response.0)
+        let response = try request.handle(received: data)
 
-        try await behaviour.client(self, operationCompleted: operation, request: request, response: (response.0, response.1, result))
+        try await behaviour.client(
+            self,
+            request: request,
+            httpRequest: requestDirection.httpRequest,
+            didReceiveEvent: .completed(
+                httpResponse: httpResponse,
+                data: data,
+                response: response
+            )
+        )
 
-        return result
+        return response
     }
 }
